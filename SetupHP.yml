@@ -17,24 +17,24 @@
         or
         ansible_distribution == 'Ubuntu'
   - name: .rpm upgrade server
-      yum: >
-        update_cache=yes
-        name=*
-        state=latest
-        update_cache=yes
-      when: >
-        ansible_distribution == 'CentOS'
-        or
-        ansible_distribution == 'RedHat'
+    yum: >
+      update_cache=yes
+      name=*
+      state=latest
+      update_cache=yes
+    when: >
+      ansible_distribution == 'CentOS'
+      or
+      ansible_distribution == 'RedHat'
   - name: .deb do dist-upgrade
-      apt: >
-        update_cache=yes
-        cache_valid_time=1200
-        upgrade=dist
-      when: >
-        ansible_distribution == 'Debian'
-        or
-        ansible_distribution == 'Ubuntu'
+    apt: >
+      update_cache=yes
+      cache_valid_time=1200
+      upgrade=dist
+    when: >
+      ansible_distribution == 'Debian'
+      or
+      ansible_distribution == 'Ubuntu'
   - name: Deb Install packages
     apt: name="{{item}}" state=latest update_cache=true
     with_items:
