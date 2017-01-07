@@ -42,7 +42,10 @@
         or
         ansible_distribution == 'Ubuntu'
 
-# Setup Users and groups as needed
+# Update PIP
+  - name: Update PIP
+    shell: pip install -U pip
+# Setup Users and groups as needed. Also removes a default account found on some VPS providers
   - name: Remove VPS default users
     user: name=user state=absent remove=yes
     ignore_errors: yes
@@ -54,7 +57,7 @@
     group: name=cowrie state=present
   - name: Cowrie User
     user: name=cowrie shell=/bin/false groups=cowrie
-# Push config files
+# Push Ubuntu auto-update, Supervisor and iptables conf files 
   - name: Push Auto Update Settings 1
     template: src=/root/conf/10periodic dest=/etc/apt/apt.conf.d/10periodic
   - name: Push Auto Update Settings 2
@@ -63,9 +66,6 @@
     copy: src=/root/conf/rules.v4 dest=/etc/iptables/rules.v4
   - name: Push Supervisor
     copy: src=/root/conf/cowrie.conf dest=/etc/supervisor/conf.d/cowrie.conf
-# Update PIP
-  - name: Update PIP
-    shell: pip install -U pip
 # Install Splunk
   - name: Download Splunk
     unarchive: src=/root/conf/splunkforwarder-6.5.1-f74036626f0c-Linux-x86_64.tgz dest=/opt/ copy=yes
@@ -81,7 +81,7 @@
     become: yes
     become_method: sudo
     shell: /opt/splunkforwarder/bin/splunk enable boot-start -user splunk
-# Install Cowrie
+# Install Cowrie and copy over our master/standardized files
   - name: Clone Cowrie
     git: repo=https://github.com/micheloosterhof/cowrie.git dest=/opt/cowrie clone=yes
   - name: Copy cowrie.cfg
@@ -116,11 +116,11 @@
       - csirtgsdk
 # Conf Tango & Splunk
   - name: Push tango_input
-    copy: src=/root/conf/tango/tango_input dest=/opt/splunkforwarder/etc/apps/
+    copy: src=conf/tango/tango_input dest=/opt/splunkforwarder/etc/apps/
   - name: Push outputs.conf
-    copy: src=/root/conf/outputs.conf dest=/opt/splunkforwarder/etc/apps/tango_input/default/outputs.conf
+    copy: src=conf/outputs.conf dest=/opt/splunkforwarder/etc/apps/tango_input/default/outputs.conf
   - name: Push inputs.conf
-    template: src=/root/conf/inputs.conf dest=/opt/splunkforwarder/etc/apps/tango_input/default/inputs.conf
+    template: src=conf/inputs.conf dest=/opt/splunkforwarder/etc/apps/tango_input/default/inputs.conf
   - name: Enable Supervisor
     command: "systemctl enable supervisor"
   - name: Splunk perms
