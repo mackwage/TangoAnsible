@@ -89,6 +89,8 @@
     shell: /opt/splunkforwarder/bin/splunk stop
   - name: Push tango_input folder
     copy: src=conf/tango/tango_input dest=/opt/splunkforwarder/etc/apps/
+  - name: Push outputs.conf
+    copy: src=conf/outputs.conf dest=/opt/splunkforwarder/etc/apps/tango_input/default/outputs.conf
   - name: Update Splunk perms for splunk user
     file: path=/opt/splunkforwarder/ owner=splunk group=splunk recurse=yes
   - name: Run Splunk
