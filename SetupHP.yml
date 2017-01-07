@@ -1,5 +1,5 @@
 ---
-- hosts: honeypots
+- hosts: newjersey15
   tasks:
 # Install patches and pre-reqs. also remove unneeded packages found on some vps providers
   - name: Deb Remove unneeded packages
@@ -141,3 +141,5 @@
 # Enable Supervisor
   - name: Enable Supervisor 1
     command: "supervisorctl reread && supervisorctl update"
+  - name: Update Splunk perms for splunk user
+    file: path=/opt/splunkforwarder/ owner=splunk group=splunk recurse=yes
