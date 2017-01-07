@@ -75,22 +75,22 @@
     group: name=cowrie state=present
   - name: Cowrie User
     user: name=cowrie shell=/bin/false groups=cowrie
-# Push Ubuntu auto-update, Supervisor and iptables conf files 
-  - name: Push Auto Update Settings 1
+# Push Ubuntu auto-update and iptables conf files 
+  - name: Push Auto Update Settings 10periodic
     template: src=conf/10periodic dest=/etc/apt/apt.conf.d/10periodic
-  - name: Push Auto Update Settings 2
+  - name: Push Auto Update Settings 50unattended-upgrades
     template: src=conf/50unattended-upgrades dest=/etc/apt/apt.conf.d/50unattended-upgrades
-  - name: Deb Push firewall settings
+  - name: Deb Push iptables settings
     copy: src=conf/rules.v4 dest=/etc/iptables/rules.v4
-  - name: Push Supervisor
-    copy: src=conf/cowrie.conf dest=/etc/supervisor/conf.d/cowrie.conf
 # Install Splunk
   - name: Download Splunk
     unarchive: src=conf/splunkforwarder-6.5.1-f74036626f0c-Linux-x86_64.tgz dest=/opt/ copy=yes
-  - name: Splunk perms
-    file: path=/opt/splunkforwarder/ owner=splunk group=splunk recurse=yes
   - name: Stop Splunk
     shell: /opt/splunkforwarder/bin/splunk stop
+  - name: Push tango_input folder
+    copy: src=conf/tango/tango_input dest=/opt/splunkforwarder/etc/apps/
+  - name: Update Splunk perms for splunk user
+    file: path=/opt/splunkforwarder/ owner=splunk group=splunk recurse=yes
   - name: Run Splunk
     become_user: splunk
     become_method: sudo
@@ -105,19 +105,23 @@
   - name: Copy cowrie.cfg
     copy: src=conf/cowrie.cfg dest=/opt/cowrie/cowrie.cfg
   - name: Copy Cowrie root
-    copy: src=conf/start.sh dest=/opt/cowrie/start.sh
+    copy: src=conf/cowrie-master/start.sh dest=/opt/cowrie/start.sh
   - name: Copy Cowrie honeyfs
     copy: src=conf/cowrie-master/honeyfs dest=/opt/cowrie/
   - name: Copy Cowrie txtcmd sbin
     copy: src=conf/cowrie-master/txtcmds dest=/opt/cowrie/
   - name: Change Cowrie ownership
     file: path=/opt/cowrie owner=cowrie group=cowrie recurse=yes
+  - name: export python var for cowrie
+    shell: "export PYTHONPATH=/opt/cowrie/"
+  - name: Push Cowrie Supervisor conf file 
+    copy: src=conf/cowrie.conf dest=/etc/supervisor/conf.d/cowrie.conf
   - name: Create virtenv
     become_user: cowrie
     become_method: sudo
     command: "virtualenv /opt/cowrie/cowrie-env"
-# Install Pre-reqs
-  - name: Activate virtualenv
+# Install virtualenv Pre-reqs
+  - name: Activate virtualenv with needed pip packages
     become_user: cowrie
     become_method: sudo
     pip: name="{{item}}" virtualenv="cowrie-env"
@@ -132,14 +136,6 @@
       - python-dateutil
       - tftpy
       - csirtgsdk
-# Conf Tango & Splunk
-  - name: Push tango_input
-    copy: src=conf/tango/tango_input dest=/opt/splunkforwarder/etc/apps/
-  - name: Enable Supervisor
-    command: "systemctl enable supervisor"
-  - name: Splunk perms
-    file: path=/opt/splunkforwarder/ owner=splunk group=splunk recurse=yes
-#Reboot VM
-  - name: reboot
-    command: "shutdown -r -f -t 00"
-    become: true
+# Enable Supervisor
+  - name: Enable Supervisor 1
+    command: "supervisorctl reread && supervisorctl update"
