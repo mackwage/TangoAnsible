@@ -139,7 +139,8 @@
       - tftpy
       - csirtgsdk
 # Enable Supervisor
-  - name: Enable Supervisor 1
-    command: "supervisorctl reread && supervisorctl update"
   - name: Update Splunk perms for splunk user
     file: path=/opt/splunkforwarder/ owner=splunk group=splunk recurse=yes
+  - name: Enable Supervisor 1
+    command: "supervisorctl reread && supervisorctl update"
+
