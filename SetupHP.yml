@@ -1,7 +1,40 @@
 ---
 - hosts: honeypots
   tasks:
-# Install Pre-reqs
+# Install patches and pre-reqs. also remove unneeded packages found on some vps providers
+  - name: Deb Remove unneeded packages
+    apt: name={{item}} state=absent
+    with_items:
+      - postfix
+      - samba
+      - apache2
+      - rpcbind
+      - bind9
+      - snmp
+      - sendmail
+    when: >
+        ansible_distribution == 'Debian'
+        or
+        ansible_distribution == 'Ubuntu'
+  - name: .rpm upgrade server
+      yum: >
+        update_cache=yes
+        name=*
+        state=latest
+        update_cache=yes
+      when: >
+        ansible_distribution == 'CentOS'
+        or
+        ansible_distribution == 'RedHat'
+  - name: .deb do dist-upgrade
+      apt: >
+        update_cache=yes
+        cache_valid_time=1200
+        upgrade=dist
+      when: >
+        ansible_distribution == 'Debian'
+        or
+        ansible_distribution == 'Ubuntu'
   - name: Deb Install packages
     apt: name="{{item}}" state=latest update_cache=true
     with_items:
@@ -27,21 +60,6 @@
         ansible_distribution == 'Debian'
         or
         ansible_distribution == 'Ubuntu'
-  - name: Deb Remove packages
-    apt: name={{item}} state=absent
-    with_items:
-      - postfix
-      - samba
-      - apache2
-      - rpcbind
-      - bind9
-      - snmp
-      - sendmail
-    when: >
-        ansible_distribution == 'Debian'
-        or
-        ansible_distribution == 'Ubuntu'
-
 # Update PIP
   - name: Update PIP
     shell: pip install -U pip
