@@ -1,0 +1,7 @@
+---
+- hosts: honeypots
+  tasks:
+  # Remove duplicate malware samples from the cowrie/dl directory
+    - name: Remove duplicate malware
+      shell: "fdupes -r -f /opt/cowrie/dl/ | grep -v '^$' | xargs rm -v"
+      become: true
