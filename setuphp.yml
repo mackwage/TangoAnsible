@@ -106,14 +106,12 @@
     git: repo=https://github.com/micheloosterhof/cowrie.git dest=/opt/cowrie clone=yes
   - name: Copy cowrie.cfg
     copy: src=conf/cowrie.cfg dest=/opt/cowrie/cowrie.cfg
-  - name: Copy Cowrie root
+  - name: Copy Cowrie start.sh
     copy: src=conf/cowrie-master/start.sh dest=/opt/cowrie/start.sh
   - name: Copy Cowrie honeyfs
     copy: src=conf/cowrie-master/honeyfs dest=/opt/cowrie/
   - name: Copy Cowrie txtcmd sbin
     copy: src=conf/cowrie-master/txtcmds dest=/opt/cowrie/
-  - name: Change Cowrie ownership
-    file: path=/opt/cowrie owner=cowrie group=cowrie recurse=yes
   - name: export python var for cowrie
     shell: "export PYTHONPATH=/opt/cowrie/"
   - name: Push Cowrie Supervisor conf file 
@@ -122,6 +120,8 @@
     become_user: cowrie
     become_method: sudo
     command: "virtualenv /opt/cowrie/cowrie-env"
+  - name: Change Cowrie ownership
+    file: path=/opt/cowrie owner=cowrie group=cowrie recurse=yes
 # Install virtualenv Pre-reqs
   - name: Activate virtualenv with needed pip packages
     become_user: cowrie
@@ -143,4 +143,3 @@
     file: path=/opt/splunkforwarder/ owner=splunk group=splunk recurse=yes
   - name: Enable Supervisor 1
     command: "supervisorctl reread && supervisorctl update"
-
