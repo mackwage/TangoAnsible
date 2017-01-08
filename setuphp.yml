@@ -56,6 +56,7 @@
       - python-pip
       - python-setuptools
       - update-manager-core
+      - fdupes
     when: >
         ansible_distribution == 'Debian'
         or
