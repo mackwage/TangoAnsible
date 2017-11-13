@@ -1,40 +1,7 @@
 ---
 - hosts: honeypots
   tasks:
-# Install patches and pre-reqs. also remove unneeded packages found on some vps providers
-  - name: Deb Remove unneeded packages
-    apt: name={{item}} state=absent
-    with_items:
-      - postfix
-      - samba
-      - apache2
-      - rpcbind
-      - bind9
-      - snmp
-      - sendmail
-    when: >
-        ansible_distribution == 'Debian'
-        or
-        ansible_distribution == 'Ubuntu'
-  - name: .rpm upgrade server
-    yum: >
-      update_cache=yes
-      name=*
-      state=latest
-      update_cache=yes
-    when: >
-      ansible_distribution == 'CentOS'
-      or
-      ansible_distribution == 'RedHat'
-  - name: .deb do dist-upgrade
-    apt: >
-      update_cache=yes
-      cache_valid_time=1200
-      upgrade=dist
-    when: >
-      ansible_distribution == 'Debian'
-      or
-      ansible_distribution == 'Ubuntu'
+# Install Pre-reqs
   - name: Deb Install packages
     apt: name="{{item}}" state=latest update_cache=true
     with_items:
@@ -56,15 +23,31 @@
       - python-pip
       - python-setuptools
       - update-manager-core
+      - virtualenv
       - fdupes
+      - nmap
+      - ncdu
     when: >
         ansible_distribution == 'Debian'
         or
         ansible_distribution == 'Ubuntu'
-# Update PIP
-  - name: Update PIP
-    shell: pip install -U pip
-# Setup Users and groups as needed. Also removes a default account found on some VPS providers
+    ignore_errors: yes
+  - name: Deb Remove packages
+    apt: name={{item}} state=absent
+    with_items:
+      - postfix
+      - samba
+      - apache2
+      - rpcbind
+      - bind9
+      - snmp
+      - sendmail
+    when: >
+        ansible_distribution == 'Debian'
+        or
+        ansible_distribution == 'Ubuntu'
+
+# Setup Users and groups as needed
   - name: Remove VPS default users
     user: name=user state=absent remove=yes
     ignore_errors: yes
@@ -76,24 +59,25 @@
     group: name=cowrie state=present
   - name: Cowrie User
     user: name=cowrie shell=/bin/false groups=cowrie
-# Push Ubuntu auto-update and iptables conf files 
-  - name: Push Auto Update Settings 10periodic
+# Push config files
+  - name: Push Auto Update Settings 1
     template: src=conf/10periodic dest=/etc/apt/apt.conf.d/10periodic
-  - name: Push Auto Update Settings 50unattended-upgrades
+  - name: Push Auto Update Settings 2
     template: src=conf/50unattended-upgrades dest=/etc/apt/apt.conf.d/50unattended-upgrades
-  - name: Deb Push iptables settings
+  - name: Deb Push firewall settings
     copy: src=conf/rules.v4 dest=/etc/iptables/rules.v4
+  - name: Push Supervisor
+    copy: src=conf/cowrie.conf dest=/etc/supervisor/conf.d/cowrie.conf
+# Update PIP
+  - name: Update PIP
+    shell: pip install -U pip
 # Install Splunk
   - name: Download Splunk
-    unarchive: src=conf/splunkforwarder-6.5.1-f74036626f0c-Linux-x86_64.tgz dest=/opt/ copy=yes
+    unarchive: src=conf/splunkforwarder-7.0.0-c8a78efdd40f-Linux-x86_64.tgz dest=/opt/ copy=yes
+  - name: Splunk perms
+    file: path=/opt/splunkforwarder/ owner=splunk group=splunk recurse=yes
   - name: Stop Splunk
     shell: /opt/splunkforwarder/bin/splunk stop
-  - name: Push tango_input folder
-    copy: src=conf/tango/tango_input dest=/opt/splunkforwarder/etc/apps/
-  - name: Push outputs.conf
-    template: src=conf/inputs.conf dest=/opt/splunkforwarder/etc/apps/tango_input/default/inputs.conf
-  - name: Update Splunk perms for splunk user
-    file: path=/opt/splunkforwarder/ owner=splunk group=splunk recurse=yes
   - name: Run Splunk
     become_user: splunk
     become_method: sudo
@@ -102,32 +86,31 @@
     become: yes
     become_method: sudo
     shell: /opt/splunkforwarder/bin/splunk enable boot-start -user splunk
-# Install Cowrie and copy over our master/standardized files
+# Install Cowrie
   - name: Clone Cowrie
     git: repo=https://github.com/micheloosterhof/cowrie.git dest=/opt/cowrie clone=yes
+    ignore_errors: yes
   - name: Copy cowrie.cfg
-    copy: src=conf/cowrie.cfg dest=/opt/cowrie/cowrie.cfg
-  - name: Copy Cowrie start.sh
-    copy: src=conf/cowrie-master/start.sh dest=/opt/cowrie/start.sh
+    copy: src=conf/cowrie.cfg dest=/opt/cowrie/cowrie.cfg force=yes
   - name: Copy Cowrie honeyfs
-    copy: src=conf/cowrie-master/honeyfs dest=/opt/cowrie/
+    copy: src=conf/cowrie-master/honeyfs dest=/opt/cowrie/ force=yes
   - name: Copy Cowrie txtcmd sbin
-    copy: src=conf/cowrie-master/txtcmds dest=/opt/cowrie/
-  - name: export python var for cowrie
-    shell: "export PYTHONPATH=/opt/cowrie/"
-  - name: Push Cowrie Supervisor conf file 
-    copy: src=conf/cowrie.conf dest=/etc/supervisor/conf.d/cowrie.conf
+    copy: src=conf/cowrie-master/txtcmds dest=/opt/cowrie/ force=yes
+  - name: Create cowrie-env
+    file: path=/opt/cowrie/cowrie-env state=directory force=yes
+  - name: Copy Cowrie Script
+    file: src=conf/cowrie dest=/opt/cowrie/bin/cowrie force=yes
+  - name: Change Cowrie ownership
+    file: path=/opt/cowrie owner=cowrie group=cowrie recurse=yes
   - name: Create virtenv
     become_user: cowrie
     become_method: sudo
     command: "virtualenv /opt/cowrie/cowrie-env"
-  - name: Change Cowrie ownership
-    file: path=/opt/cowrie owner=cowrie group=cowrie recurse=yes
-# Install virtualenv Pre-reqs
-  - name: Activate virtualenv with needed pip packages
+# Install Pre-reqs
+  - name: Activate virtualenv
     become_user: cowrie
     become_method: sudo
-    pip: name="{{item}}" virtualenv="cowrie-env"
+    pip: name="{{item}}" virtualenv="/opt/cowrie/cowrie-env"
     with_items:
       - twisted>=15.2.1
       - cryptography
@@ -139,8 +122,18 @@
       - python-dateutil
       - tftpy
       - csirtgsdk
-# Enable Supervisor
-  - name: Update Splunk perms for splunk user
+# Conf Tango & Splunk
+  - name: Push tango_input
+    copy: src=conf/tango/tango_input dest=/opt/splunkforwarder/etc/apps/
+  - name: Push outputs.conf
+    copy: src=conf/outputs.conf dest=/opt/splunkforwarder/etc/apps/tango_input/default/outputs.conf
+  - name: Push inputs.conf
+    template: src=conf/inputs.conf dest=/opt/splunkforwarder/etc/apps/tango_input/default/inputs.conf
+  - name: Enable Supervisor
+    command: "systemctl enable supervisor"
+  - name: Splunk perms
     file: path=/opt/splunkforwarder/ owner=splunk group=splunk recurse=yes
-  - name: Enable Supervisor 1
-    command: "supervisorctl reread && supervisorctl update"
+#Reboot VM
+  - name: reboot
+    command: "shutdown -r -f -t 00"
+    become: true
